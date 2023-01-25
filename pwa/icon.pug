@@ -1,0 +1,15 @@
+doctype xml
+svg(
+  xmlns='http://www.w3.org/2000/svg'
+  width='200'
+  height='200'
+)
+  style.
+    .square-g{fill:#ccc;stroke:black;stroke-width:2;}
+    .square-w{fill:white;stroke:black;stroke-width:2;}
+  rect(x='70',y='70',width='50',height='50',stroke='none',fill='black')
+  for sz in [[0,0],[3,1],[2,2],[2,0]]
+    rect.square-g(x=sz[0]*50+20,y=sz[1]*50+20,width='50',height='50')
+  for sz in [[1,0],[1,2],[2,1],[0,1]]
+    rect.square-w(x=sz[0]*50+20,y=sz[1]*50+20,width='50',height='50')
+
