@@ -1,0 +1,17 @@
+doctype html
+html(lang='en')
+  head
+    title= pwa.name
+    meta(charset='utf-8')
+    meta(name='viewport', content='width=device-width,initial-scale=1')
+    meta(name='theme-color', content=pwa.theme_color)
+    meta(name='description', content=pwa.description)
+    link(rel='stylesheet', href='style.css')
+    link(rel='icon', href='icons/icon_128.png')
+    link(rel='manifest', href=manifest_path)
+    link(rel='apple-touch-icon', href='icons/icon_192.png')
+    script(type='text/javascript', src='app.js')
+  body(onload='init()')
+    //
+    // TODO
+    //

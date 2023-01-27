@@ -27,7 +27,7 @@ exports.cfg =
     theme_color: '#fff'
     scope: '/fluffy-racoon/'
   static: 'static'
-  version: '1.1.1'
+  version: '0.1.0'
   web:
     html:
       src: ("#{webpath}/#{file}" for file in ['index.pug'])
@@ -37,5 +37,5 @@ exports.cfg =
       src: "#{webpath}/style.sass"
       out: 'style.css'
     coffee:
-      src: "#{webpath}/app.ls"
+      src: "#{webpath}/app.coffee"
       out: 'app.js'

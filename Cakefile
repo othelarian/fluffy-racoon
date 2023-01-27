@@ -154,7 +154,7 @@ checkEnv = (options) ->
   cfg.force = options.force?
 
 compileJs = (cb) ->
-  in_opts = {input: cfg.web.coffee.src, plugins: [rollLive({bare: true})]}
+  in_opts = {input: cfg.web.coffee.src, plugins: [rollCoffee({bare: true})]}
   out_opts =
     file: cfg.web.coffee.out
     format: 'iife'
@@ -163,7 +163,7 @@ compileJs = (cb) ->
     watcher = watch {in_opts..., output: out_opts}
     watcher.on 'event', (event) ->
       if event.code is 'ERROR' then console.log event.error
-      else if event.code is 'END' then traceExec 'coffee'
+      else if event.code is 'END' then traceExec 'livescript'
   else
     bundle = await rollup in_opts
     await bundle.write out_opts
