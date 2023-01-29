@@ -1,26 +1,42 @@
-import {store} from './store.coffee'
+import {Store} from './store.coffee'
+import * as U from './utils.coffee'
 
-game =
-  #
-  # TODO
-  #
-  #
-  testa: -> console.log 'plop'
+LS = U.LS
+
+Fluffy =
+  # attibutes
+  # submodules
+  store: Store
+  # methods
+  check: ->
+    #
+    # TODO
+    #
+    console.log 'on my way...'
+    #
   #
 
 
-init = ->
-  if navigator.serviceWorker?
-    navigator.serviceWorker.register 'sw.js', {scope: '/fluffy-racoon/'}
+initFluffy = ->
+  if swinit? then swinit()
+  #
+  # TODO: test LS
   #
   #
-  # TODO
+  if LS.check()
+    #
+    if Fluffy.check()
+      #
+      console.log 'checking if the game already have data in it'
+      #
+    #
+    console.log 'ls ok'
+    #
+  #
   #
   console.log store.blob
   console.log 'not ready'
   #
 
-
-window.game = game
-window.init = init
-window.store = store
+window.Fluffy = Fluffy
+window.initFluffy = initFluffy

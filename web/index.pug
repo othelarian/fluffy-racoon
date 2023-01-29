@@ -1,3 +1,4 @@
+- manifest_path = pwa['short-name'] + '.webmanifest'
 doctype html
 html(lang='en')
   head
@@ -10,8 +11,33 @@ html(lang='en')
     link(rel='icon', href='icons/icon_128.png')
     link(rel='manifest', href=manifest_path)
     link(rel='apple-touch-icon', href='icons/icon_192.png')
+    if github
+      script(type='text/javascript', src='swinit.js')
     script(type='text/javascript', src='app.js')
-  body(onload='init()')
+  body(onload='initFluffy()')
     //
     // TODO
+    //
+    #flr-main-menu.screen
+      h2 Main menu
+      //
+      //
+      //
+      // TODO
+      //
+    //
+    //
+    #flr-character-creation.screen
+      //
+      // TODO
+      //
+      div Character creation
+      //
+    //
+    #flr-settings.screen
+      //
+      // TODO
+      //
+      div settings
+      //
     //

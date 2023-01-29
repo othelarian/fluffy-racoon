@@ -15,7 +15,8 @@ sharp = require 'sharp'
 
 # OPTIONS #############################
 
-option '-r', '--release', 'set compilation mode to release'
+option '-r', '--release', 'set compilation mode to release for itch.io'
+option '-g', '--github', 'set compilation mode to release for github'
 option '-f', '--force', 'ONLY FOR PWA: regen all the PWA files'
 
 # GLOBAL VARS #########################
@@ -61,9 +62,9 @@ pwaManifest = (cb) ->
     catch e
       cb e, null
 
-pwaSW = (cb) ->
-  gen_file = cfg.pwa.service_worker.out
-  src_file = cfg.pwa.service_worker.src
+pwaScript = (script, cb) ->
+  gen_file = cfg.pwa[script].out
+  src_file = cfg.pwa[script].src
   if not cfg.force and await timeDiff gen_file, src_file
     console.log 'sw script already on the latest version'
     cb null, 9
@@ -72,13 +73,16 @@ pwaSW = (cb) ->
     out_opts =
       file: "./#{gen_file}"
       format: 'iife'
-      plugins: (if cfg.envRelease then [terser()] else [])
+      plugins: (if cfg.release then [terser()] else [])
     try
       await (await rollup in_opts).write out_opts
       traceExec 'sw'
       cb null, 9
     catch e
       cb e, null
+
+pwaSI = (cb) -> pwaScript 'service_init', cb
+pwaSW = (cb) -> pwaScript 'service_worker', cb
 
 # COMMON FUNS #########################
 
@@ -97,7 +101,7 @@ doExec = (in_files, out_file, selected) ->
     rendered = switch selected
       when 'pug', 'icon' then pug.renderFile in_files[0], cfg
       when 'sass'
-        style = if cfg.envRelease then 'compressed' else 'expanded'
+        style = if cfg.release then 'compressed' else 'expanded'
         (sass.compile in_files, {style}).css
     fse.writeFileSync out_file, rendered
     if selected is 'icon'
@@ -135,10 +139,12 @@ checkEnv = (options) ->
     fse.accessSync cfgpath
     cfgov = require(cfgpath).cfg
     cfg[key] = value for key, value of cfgov
-  cfg.envRelease = if options.release? then true else false
+  [cfg.release, cfg.github] =
+    if options.github then [true, true]
+    else [(if options.release? then true else false), false]
+  cfg.dest = cfg.dest_path[if cfg.release then 'release' else 'debug']
+  if cfg.github then cfg.dest = cfg.dest_path.github
   cfg.watching = false
-  cfg.dest = cfg.dest_path[if cfg.envRelease then 'release' else 'debug']
-  if options.publish then cfg.dest = cfg.dest_path.github
   outUpdate = (path) ->
     curr = if path.length is 0 then cfg else
       tmp = cfg
@@ -158,21 +164,23 @@ compileJs = (cb) ->
   out_opts =
     file: cfg.web.coffee.out
     format: 'iife'
-    plugins: (if cfg.envRelease then [terser()] else [])
+    plugins: (if cfg.release then [terser()] else [])
   if cfg.watching
     watcher = watch {in_opts..., output: out_opts}
     watcher.on 'event', (event) ->
       if event.code is 'ERROR' then console.log event.error
-      else if event.code is 'END' then traceExec 'livescript'
+      else if event.code is 'END' then traceExec 'coffee'
   else
     bundle = await rollup in_opts
     await bundle.write out_opts
-    traceExec 'livescript'
+    traceExec 'coffee'
   cb null, 0
 
 compilePug = (cb) -> runExec 'pug', cb
 
-compilePWA = (cb) -> (bach.series pwaIcon, pwaManifest, pwaSW) cb
+compilePWA = (cb) ->
+  if cfg.github then (bach.series pwaIcon, pwaManifest, pwaSW, pwaSI) cb
+  else (bach.series pwaIcon, pwaManifest) cb
 
 compileSass = (cb) -> runExec 'sass', cb
 
@@ -183,7 +191,7 @@ createDir = (cb) ->
     cb null, 0
   catch e
     if e.code = 'EEXIST'
-      if not cfg.envRelease
+      if not cfg.release
         console.warn 'Warning: \'dist\' already exists'
       cb null, 1
     else cb e, null
@@ -201,34 +209,53 @@ building = bach.series createDir, compileSass, compilePug, compilePWA, compileJs
 
 task 'build', 'build the app (core + static + wasm)', (options) ->
   checkEnv options
-  console.log 'building...'
-  building (e, _) ->
-    if e?
-      console.log 'Something went wrong'
+  zipping = ->
+    console.log 'zipping...'
+    admzip = require 'adm-zip'
+    try
+      zip = new admzip()
+      zip.addLocalFolder cfg.dest
+      zip.writeZip cfg.itch.zipname
+      console.log "========> itch zip ready: #{cfg.itch.zipname}"
+    catch e
+      console.log 'Something went wrong while zipping'
       console.log e
-    else console.log 'building => done'
+  buildapp = ->
+    if cfg.github then console.log "github mode, building in #{cfg.dest}"
+    else if cfg.release then console.log "release mode, building in #{cfg.dest}"
+    else console.log "dev building... (#{cfg.dest})"
+    building (e, _) ->
+      if e?
+        console.log 'Something went wrong'
+        console.log e
+      else
+        console.log 'building => done'
+        if cfg.github
+          console.log 'github dir ready to be pushed'
+        else if cfg.release
+          aftercheck = (e) ->
+            if not e?
+              console.log 'removing old zip'
+              fse.rmSync cfg.itch.zipname
+            zipping()
+          await fse.access cfg.itch.zipname, fse.constants.F_OK, aftercheck
+  if cfg.release
+    console.log 'release mode, cleaning before compiling'
+    fse.remove "./#{cfg.dest}", (e) ->
+      if e? then console.log e
+      else buildapp()
+  else buildapp()
 
-task_cleandesc =
-  "rm ./#{cfg.dest_path.debug} or ./#{cfg.dest_path.release} (debug or release)"
-task 'clean', task_cleandesc, (options) ->
+task 'clean', 'clean the compiled dir, depending on the options', (options) ->
   checkEnv options
   console.log "cleaning `#{cfg.dest}`..."
   fse.remove "./#{cfg.dest}", (e) ->
     if e? then console.log e
     else console.log "`#{cfg.dest}` removed successfully"
 
-task 'github', 'populate `docs` dir for github page', (options) ->
-  checkEnv {release: true, publish: true}
-  fse.remove "./#{cfg.dest}", (e) ->
-    if e? then console.log e
-    else
-      building (e, _) ->
-        if e? then console.log e
-        else console.log 'publishing DONE'
-
 task 'icon', 'generate and watch for the icon', (options) ->
   checkEnv options
-  if cfg.envRelease
+  if cfg.release
     console.error 'Impossible to use `icon` in `releaase` mode!'
   else
     cfg.watching = true
@@ -240,7 +267,7 @@ task 'pwa', 'compile everything for the PWA (icon + manifest + sw)', (options) -
 
 task 'serve', 'launch a micro server and watch files', (options) ->
   checkEnv options
-  if cfg.envRelease
+  if cfg.release
     console.error 'Impossible to use `serve` in `release` mode!'
   else
     cfg.watching = true

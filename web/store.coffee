@@ -1,6 +1,6 @@
 
 
-export store =
+export Store =
   #
   # TODO
   #
